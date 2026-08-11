@@ -1,4 +1,4 @@
-const CACHE = "aph-catalogue-v9";
+const CACHE = "aph-catalogue-v10";
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./bg.jpg", "./logo-full.png", "./logo-mono.png", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
@@ -15,9 +15,9 @@ self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
   const isPage = e.request.mode === "navigate" || e.request.url.endsWith("/index.html");
   if (isPage) {
-    // réseau d'abord (pour recevoir les mises à jour), cache en secours (hors ligne)
+    // réseau d'abord en revalidant aupres du serveur (mises à jour immédiates), cache en secours (hors ligne)
     e.respondWith(
-      fetch(e.request).then(res => {
+      fetch(e.request, { cache: "no-cache" }).then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put("./index.html", copy));
         return res;
