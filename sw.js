@@ -1,4 +1,4 @@
-const CACHE = "aph-catalogue-v10";
+const CACHE = "aph-catalogue-v11";
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./bg.jpg", "./logo-full.png", "./logo-mono.png", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {

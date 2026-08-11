@@ -258,6 +258,44 @@ img{display:block}
 }
 .viewer input.caption-edit::placeholder{color:var(--muted)}
 
+/* ---------- Editor ---------- */
+.editor{
+  position:fixed;inset:0;z-index:105;background:#0a0908;
+  display:none;flex-direction:column;
+}
+.editor.open{display:flex}
+.editor .etop{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:calc(var(--sat) + 12px) 18px 12px;
+}
+.editor .etitle{font-family:var(--serif);font-size:17px;letter-spacing:.08em;color:var(--text)}
+.ecanvas-box{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:12px;min-height:0;
+}
+#eCanvas{
+  touch-action:none;background:#000;
+  box-shadow:0 0 0 1px var(--hair2),0 20px 60px rgba(0,0,0,.6);
+  max-width:100%;max-height:100%;
+}
+.econtrols{
+  padding:14px 22px calc(var(--sab) + 18px);
+  display:flex;flex-direction:column;gap:12px;
+  border-top:1px solid var(--hair2);
+}
+.erow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.ratio-btn{
+  padding:10px 16px;border:1px solid var(--hair);font-size:12px;letter-spacing:.12em;
+  color:var(--muted);text-transform:uppercase;transition:all .25s;
+}
+.ratio-btn.active{color:#171308;background:var(--gold);border-color:var(--gold);font-weight:600}
+.eslider{
+  display:flex;align-items:center;gap:14px;
+  font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+}
+.eslider input[type=range]{flex:1;accent-color:var(--gold);height:30px}
+.ehint{text-align:center;font-size:11px;letter-spacing:.1em;color:var(--muted);opacity:.7}
+
 /* ---------- Panels / modals ---------- */
 .sheet-backdrop{position:fixed;inset:0;z-index:90;background:rgba(5,4,3,.6);backdrop-filter:blur(3px);display:none}
 .sheet-backdrop.open{display:block}
@@ -359,6 +397,28 @@ img{display:block}
   </div>
   <div class="track" id="viewerTrack"></div>
   <div class="vbottom" id="viewerBottom"></div>
+</div>
+
+<div class="editor" id="editor">
+  <div class="etop">
+    <button class="iconbtn" id="eCancel">✕&nbsp; Annuler</button>
+    <span class="etitle">Modifier la photo</span>
+    <button class="iconbtn solid" id="eSave">✓&nbsp; Enregistrer</button>
+  </div>
+  <div class="ecanvas-box"><canvas id="eCanvas"></canvas></div>
+  <div class="econtrols">
+    <div class="erow">
+      <button class="ratio-btn active" data-ratio="">Original</button>
+      <button class="ratio-btn" data-ratio="1">Carré</button>
+      <button class="ratio-btn" data-ratio="1.3333">4:3</button>
+      <button class="ratio-btn" data-ratio="1.7778">16:9</button>
+      <button class="ratio-btn" id="eRotate">⟳ Pivoter</button>
+    </div>
+    <label class="eslider">Luminosité <input type="range" id="eB" min="50" max="150" value="100"></label>
+    <label class="eslider">Contraste <input type="range" id="eC" min="50" max="150" value="100"></label>
+    <label class="eslider">Couleurs <input type="range" id="eS" min="0" max="200" value="100"></label>
+    <div class="ehint">Glisse la photo pour la recadrer &nbsp;·&nbsp; pince avec 2 doigts pour zoomer</div>
+  </div>
 </div>
 
 <div class="sheet-backdrop" id="sheetBackdrop"></div>
@@ -843,8 +903,10 @@ function updateViewerUI(){
   vCount.textContent=`${viewerIndex+1} / ${currentPhotos.length}`;
   if(editMode){
     vTools.innerHTML=`
+      <button class="iconbtn" id="vEdit">✂ Modifier</button>
       <button class="iconbtn" id="vCover">★ Couverture</button>
       <button class="iconbtn" id="vDelete" style="color:var(--danger);border-color:rgba(201,106,92,.5)">🗑</button>`;
+    $("#vEdit").onclick=()=>openEditor(p);
     $("#vCover").onclick=async()=>{await setCover(p.categoryId,p.id);toast("Définie comme couverture ✦")};
     $("#vDelete").onclick=async()=>{
       const ok=await askConfirm({title:"Supprimer cette photo",text:"La photo sera définitivement supprimée.",danger:true,okLabel:"Supprimer"});
@@ -861,6 +923,155 @@ function updateViewerUI(){
     vBottom.innerHTML=p.caption?`<div class="caption">${esc(p.caption)}</div>`:"";
   }
 }
+
+/* ================= Photo editor ================= */
+const editor=$("#editor"),eCanvas=$("#eCanvas");
+let eState=null;
+
+async function openEditor(p){
+  const u=URL.createObjectURL(bufToBlob(p.full));
+  let img;
+  try{img=await loadImage(u)}finally{URL.revokeObjectURL(u)}
+  eState={p,img,rot:0,scale:1,ox:0,oy:0,b:100,c:100,s:100,ratio:null,frameW:0,frameH:0};
+  $("#eB").value=100;$("#eC").value=100;$("#eS").value=100;
+  document.querySelectorAll(".ratio-btn[data-ratio]").forEach(b=>b.classList.toggle("active",b.dataset.ratio===""));
+  editor.classList.add("open");
+  requestAnimationFrame(()=>{sizeEditor();drawEditor()});
+}
+function closeEditor(){editor.classList.remove("open");eState=null}
+function eImgDims(){
+  const {img,rot}=eState;
+  return rot%180?{w:img.naturalHeight,h:img.naturalWidth}:{w:img.naturalWidth,h:img.naturalHeight};
+}
+function sizeEditor(){
+  const box=eCanvas.parentElement;
+  const boxW=box.clientWidth-24,boxH=box.clientHeight-24;
+  const d=eImgDims();
+  const ratio=eState.ratio||d.w/d.h;
+  let fw=boxW,fh=fw/ratio;
+  if(fh>boxH){fh=boxH;fw=fh*ratio}
+  eState.frameW=fw;eState.frameH=fh;
+  const dpr=Math.min(devicePixelRatio||1,2);
+  eCanvas.width=Math.round(fw*dpr);eCanvas.height=Math.round(fh*dpr);
+  eCanvas.style.width=fw+"px";eCanvas.style.height=fh+"px";
+}
+function drawEditor(){
+  if(!eState)return;
+  const {img,rot,scale,ox,oy,frameW,frameH,b,c,s}=eState;
+  const ctx=eCanvas.getContext("2d");
+  const dpr=eCanvas.width/frameW;
+  const d=eImgDims();
+  const base=Math.max(frameW/d.w,frameH/d.h);
+  const k=base*scale*dpr;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle="#000";ctx.fillRect(0,0,eCanvas.width,eCanvas.height);
+  ctx.translate(eCanvas.width/2+ox*dpr,eCanvas.height/2+oy*dpr);
+  ctx.rotate(rot*Math.PI/180);
+  ctx.scale(k,k);
+  ctx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);
+  eCanvas.style.filter=`brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
+}
+/* pan + pinch */
+const ePts=new Map();
+let ePinchDist=0,ePinchScale=1;
+eCanvas.addEventListener("pointerdown",e=>{
+  eCanvas.setPointerCapture(e.pointerId);
+  ePts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ePts.size===2){
+    const [a,b]=[...ePts.values()];
+    ePinchDist=Math.hypot(a.x-b.x,a.y-b.y);
+    ePinchScale=eState.scale;
+  }
+});
+eCanvas.addEventListener("pointermove",e=>{
+  if(!eState||!ePts.has(e.pointerId))return;
+  const prev=ePts.get(e.pointerId);
+  ePts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ePts.size===1){
+    eState.ox+=e.clientX-prev.x;
+    eState.oy+=e.clientY-prev.y;
+  }else if(ePts.size===2&&ePinchDist>0){
+    const [a,b]=[...ePts.values()];
+    const dist=Math.hypot(a.x-b.x,a.y-b.y);
+    eState.scale=Math.min(5,Math.max(1,ePinchScale*dist/ePinchDist));
+  }
+  drawEditor();
+});
+function ePtUp(e){ePts.delete(e.pointerId);ePinchDist=0}
+eCanvas.addEventListener("pointerup",ePtUp);
+eCanvas.addEventListener("pointercancel",ePtUp);
+
+document.querySelectorAll(".ratio-btn[data-ratio]").forEach(b=>b.onclick=()=>{
+  if(!eState)return;
+  document.querySelectorAll(".ratio-btn[data-ratio]").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  eState.ratio=b.dataset.ratio?parseFloat(b.dataset.ratio):null;
+  eState.ox=0;eState.oy=0;
+  sizeEditor();drawEditor();
+});
+$("#eRotate").onclick=()=>{
+  if(!eState)return;
+  eState.rot=(eState.rot+90)%360;
+  eState.ox=0;eState.oy=0;
+  sizeEditor();drawEditor();
+};
+["eB","eC","eS"].forEach(id=>{
+  $("#"+id).addEventListener("input",e=>{
+    if(!eState)return;
+    eState[id.slice(1).toLowerCase()]=parseInt(e.target.value,10);
+    drawEditor();
+  });
+});
+$("#eCancel").onclick=closeEditor;
+function applyFiltersManually(cnv,b,c,s){
+  const ctx=cnv.getContext("2d");
+  const im=ctx.getImageData(0,0,cnv.width,cnv.height);
+  const px=im.data,fb=b/100,fc=c/100,fs=s/100;
+  for(let i=0;i<px.length;i+=4){
+    let r=px[i]*fb,g=px[i+1]*fb,bl=px[i+2]*fb;
+    r=(r-128)*fc+128;g=(g-128)*fc+128;bl=(bl-128)*fc+128;
+    const gray=r*0.299+g*0.587+bl*0.114;
+    px[i]=Math.min(255,Math.max(0,gray+(r-gray)*fs));
+    px[i+1]=Math.min(255,Math.max(0,gray+(g-gray)*fs));
+    px[i+2]=Math.min(255,Math.max(0,gray+(bl-gray)*fs));
+  }
+  ctx.putImageData(im,0,0);
+}
+$("#eSave").onclick=async()=>{
+  if(!eState)return;
+  progress(true,"Enregistrement…");
+  try{
+    const {p,img,rot,scale,ox,oy,frameW,frameH,b,c,s}=eState;
+    const d=eImgDims();
+    const base=Math.max(frameW/d.w,frameH/d.h);
+    const outW=Math.max(200,Math.min(1800,Math.round(frameW/(base*scale))));
+    const F=outW/frameW;
+    const oc=document.createElement("canvas");
+    oc.width=outW;oc.height=Math.round(frameH*F);
+    const ctx=oc.getContext("2d");
+    let filterOk=true;
+    ctx.filter=`brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
+    if(ctx.filter==="none")filterOk=false;
+    ctx.translate(oc.width/2+ox*F,oc.height/2+oy*F);
+    ctx.rotate(rot*Math.PI/180);
+    const k=base*scale*F;
+    ctx.scale(k,k);
+    ctx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);
+    if(!filterOk&&(b!==100||c!==100||s!==100))applyFiltersManually(oc,b,c,s);
+    const full=await new Promise(r=>oc.toBlob(r,"image/jpeg",.85));
+    const ts=Math.min(1,480/Math.max(oc.width,oc.height));
+    const tc=document.createElement("canvas");
+    tc.width=Math.round(oc.width*ts);tc.height=Math.round(oc.height*ts);
+    tc.getContext("2d").drawImage(oc,0,0,tc.width,tc.height);
+    const thumb=await new Promise(r=>tc.toBlob(r,"image/jpeg",.75));
+    p.full=full;p.thumb=thumb;
+    await putPhoto(p);
+    progress(false);
+    closeEditor();
+    toast("Photo modifiée ✦");
+    openViewer(viewerIndex);
+  }catch(err){progress(false);console.error(err);toast("Erreur lors de l'enregistrement")}
+};
 
 /* ================= Settings sheet ================= */
 const sheet=$("#sheet"),sheetBackdrop=$("#sheetBackdrop");
@@ -888,7 +1099,7 @@ async function openSheet(){
       Les photos sont stockées sur cet appareil.<br>
       Pensez à exporter une sauvegarde régulièrement.<br><br>
       Sur iPad : Safari → Partager → « Sur l'écran d'accueil »<br>pour installer l'application.<br><br>
-      Version 1.5
+      Version 1.6
     </div>`;
   sheet.classList.add("open");sheetBackdrop.classList.add("open");
   $("#editSwitch").onclick=()=>{
