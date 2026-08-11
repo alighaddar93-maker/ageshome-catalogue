@@ -134,7 +134,8 @@ img{display:block}
   grid-template-columns:1fr;align-content:center;
   max-width:1200px;width:100%;margin:0 auto;
 }
-@media (min-width:820px){.home-cards{grid-template-columns:1fr 1fr}}
+@media (min-width:820px){.home-cards{grid-template-columns:repeat(auto-fit,minmax(360px,1fr))}}
+.add-zone{aspect-ratio:auto;min-height:clamp(240px,38vh,420px)}
 .home-card{
   position:relative;border:1px solid var(--hair);
   background:rgba(21,19,16,.55);
@@ -408,7 +409,7 @@ img{display:block}
   <div class="ecanvas-box"><canvas id="eCanvas"></canvas></div>
   <div class="econtrols">
     <div class="erow">
-      <button class="ratio-btn active" data-ratio="">Original</button>
+      <button class="ratio-btn active" data-ratio="">Libre</button>
       <button class="ratio-btn" data-ratio="1">Carré</button>
       <button class="ratio-btn" data-ratio="1.3333">4:3</button>
       <button class="ratio-btn" data-ratio="1.7778">16:9</button>
@@ -417,7 +418,7 @@ img{display:block}
     <label class="eslider">Luminosité <input type="range" id="eB" min="50" max="150" value="100"></label>
     <label class="eslider">Contraste <input type="range" id="eC" min="50" max="150" value="100"></label>
     <label class="eslider">Couleurs <input type="range" id="eS" min="0" max="200" value="100"></label>
-    <div class="ehint">Glisse la photo pour la recadrer &nbsp;·&nbsp; pince avec 2 doigts pour zoomer</div>
+    <div class="ehint">Tire les <b style="color:var(--gold2)">coins dorés</b> pour couper ce que tu veux &nbsp;·&nbsp; glisse le cadre pour le déplacer</div>
   </div>
 </div>
 
@@ -441,7 +442,7 @@ img{display:block}
 <script>
 "use strict";
 /* ================= IndexedDB ================= */
-const DB_NAME="aph-catalogue", DB_VERSION=1;
+const DB_NAME="aph-catalogue", DB_VERSION=2;
 let db=null;
 
 function openDB(){
@@ -460,6 +461,11 @@ function openDB(){
       if(!d.objectStoreNames.contains("meta")){
         d.createObjectStore("meta",{keyPath:"key"});
       }
+      if(!d.objectStoreNames.contains("sections")){
+        const s=d.createObjectStore("sections",{keyPath:"id"});
+        s.put({id:"portfolio",title:"Portfolio",kicker:"Nos réalisations",sub:"Nos projets réalisés chez nos clients",order:0});
+        s.put({id:"catalogue",title:"Catalogue",kicker:"Nos collections",sub:"Nos produits disponibles à la commande",order:1});
+      }
     };
     rq.onsuccess=()=>{db=rq.result;res(db)};
     rq.onerror=()=>rej(rq.error);
@@ -474,8 +480,26 @@ async function blobToBuf(v){return v instanceof Blob?await v.arrayBuffer():v}
 
 /* ================= Data ================= */
 const DEFAULT_CATS=["Salon","Chambre","Salle à manger","Chaises","Bureaux","Chaises de bureau","Céramique","Vasques"];
-const SECTIONS={portfolio:{title:"Portfolio",kicker:"Nos réalisations",sub:"Nos projets réalisés chez nos clients"},
-                catalogue:{title:"Catalogue",kicker:"Nos collections",sub:"Nos produits disponibles à la commande"}};
+
+async function getSections(){return (await idbReq(tx("sections").getAll())).sort((a,b)=>a.order-b.order)}
+async function getSection(id){return idbReq(tx("sections").get(id))}
+async function addSection(title){
+  const all=await getSections();
+  const order=all.length?Math.max(...all.map(s=>s.order))+1:0;
+  const s={id:uid(),title,kicker:"Notre univers",sub:"",order};
+  await idbReq(tx("sections","readwrite").put(s));
+  return s;
+}
+async function renameSection(id,title){
+  const s=await getSection(id);s.title=title;
+  await idbReq(tx("sections","readwrite").put(s));
+}
+async function deleteSection(id){
+  const cats=await getCategories(id);
+  for(const c of cats)await deleteCategory(c.id);
+  await idbReq(tx("meta","readwrite").delete("cover-"+id));
+  await idbReq(tx("sections","readwrite").delete(id));
+}
 
 async function seedIfNeeded(){
   const done=await idbReq(tx("meta").get("seeded"));
@@ -622,15 +646,16 @@ function bindSettingsBtn(){const b=$("#settingsBtn");if(b)b.onclick=openSheet}
 async function renderHome(){
   current={name:"home",section:null,catId:null};
   const oldUrls=swapUrlScope();
+  const secs=await getSections();
   const covers={};
-  for(const sec of ["portfolio","catalogue"]){
-    const explicit=await getMeta("cover-"+sec);
-    if(explicit){covers[sec]=blobUrl(explicit);continue;}
-    const cats=await getCategories(sec);
+  for(const sec of secs){
+    const explicit=await getMeta("cover-"+sec.id);
+    if(explicit){covers[sec.id]=blobUrl(explicit);continue;}
+    const cats=await getCategories(sec.id);
     for(const c of cats){
       const photos=await getPhotos(c.id);
       const u=categoryCoverUrl(c,photos);
-      if(u){covers[sec]=u;break;}
+      if(u){covers[sec.id]=u;break;}
     }
   }
   setScreen(`
@@ -640,20 +665,24 @@ async function renderHome(){
       <div class="divider"></div>
     </div>
     <div class="home-cards">
-      ${["portfolio","catalogue"].map(sec=>`
-        <div class="home-card" data-sec="${sec}">
-          ${covers[sec]?`<img class="bgcover" src="${covers[sec]}" alt="" onerror="this.remove()">`:""}
+      ${secs.map(sec=>`
+        <div class="home-card" data-sec="${sec.id}">
+          ${covers[sec.id]?`<img class="bgcover" src="${covers[sec.id]}" alt="" onerror="this.remove()">`:""}
           <div class="veil"></div>
           ${editMode?`<div class="edit-tools" style="position:absolute;top:12px;right:12px;z-index:2">
-            <button class="mini-btn sec-cover" data-sec="${sec}" title="Photo de fond">🖼</button>
+            <button class="mini-btn sec-cover" data-sec="${sec.id}" title="Photo de fond">🖼</button>
+            <button class="mini-btn sec-rename" data-sec="${sec.id}" title="Renommer">✎</button>
+            <button class="mini-btn danger sec-delete" data-sec="${sec.id}" title="Supprimer">🗑</button>
           </div>`:""}
           <div class="inner">
-            <div class="kicker">${esc(SECTIONS[sec].kicker)}</div>
-            <h2>${esc(SECTIONS[sec].title.toUpperCase())}</h2>
-            <div class="sub">${esc(SECTIONS[sec].sub)}</div>
+            <div class="kicker">${esc(sec.kicker||"")}</div>
+            <h2>${esc(sec.title.toUpperCase())}</h2>
+            ${sec.sub?`<div class="sub">${esc(sec.sub)}</div>`:""}
             <span class="cta">Découvrir</span>
           </div>
         </div>`).join("")}
+      ${editMode?`<button class="add-card add-zone" id="addZone">
+        <span class="plus">+</span><span class="lbl">Nouvelle zone</span></button>`:""}
     </div>
     <div class="home-foot">Ages Home &nbsp;—&nbsp; Libreville, Gabon</div>
     <div style="position:fixed;top:calc(var(--sat) + 14px);right:16px;z-index:5">${editBtnHtml()}</div>
@@ -668,12 +697,32 @@ async function renderHome(){
     $("#sectionCoverPicker").dataset.sec=b.dataset.sec;
     $("#sectionCoverPicker").click();
   });
+  document.querySelectorAll(".sec-rename").forEach(b=>b.onclick=async()=>{
+    const s=await getSection(b.dataset.sec);
+    const name=await askText({title:"Renommer la zone",value:s.title});
+    if(name){await renameSection(s.id,name);renderHome()}
+  });
+  document.querySelectorAll(".sec-delete").forEach(b=>b.onclick=async()=>{
+    const s=await getSection(b.dataset.sec);
+    const cats=await getCategories(s.id);
+    let n=0;for(const c of cats)n+=(await getPhotos(c.id)).length;
+    const ok=await askConfirm({title:`Supprimer « ${s.title} »`,danger:true,okLabel:"Supprimer",
+      text:`Cette zone contient ${cats.length} catégorie${cats.length>1?"s":""} et ${n} photo${n>1?"s":""}. Tout sera définitivement supprimé.`});
+    if(ok){await deleteSection(s.id);toast("Zone supprimée");renderHome()}
+  });
+  const az=$("#addZone");
+  if(az)az.onclick=async()=>{
+    const name=await askText({title:"Nouvelle zone",placeholder:"Ex : Extérieur, Projets 2026…",okLabel:"Créer"});
+    if(name){await addSection(name);toast("Zone ajoutée ✦");renderHome()}
+  };
   bindSettingsBtn();
   dropUrls(oldUrls);
 }
 
 /* ---- Section (categories) ---- */
 async function renderSection(section){
+  const sec=await getSection(section);
+  if(!sec)return renderHome();
   current={name:"section",section,catId:null};
   const oldUrls=swapUrlScope();
   const cats=await getCategories(section);
@@ -705,8 +754,8 @@ async function renderSection(section){
     <div class="topbar">
       <button class="back" id="backBtn">‹</button>
       <div class="titles">
-        <div class="crumb">Ages Home · ${esc(SECTIONS[section].kicker)}</div>
-        <h1>${esc(SECTIONS[section].title)}</h1>
+        <div class="crumb">Ages Home · ${esc(sec.kicker||sec.title)}</div>
+        <h1>${esc(sec.title)}</h1>
       </div>
       <div class="actions">${editBtnHtml()}</div>
     </div>
@@ -752,6 +801,7 @@ async function renderCategory(catId){
   if(!cat){return renderHome()}
   current={name:"category",section:cat.section,catId};
   const oldUrls=swapUrlScope();
+  const sec=await getSection(cat.section);
   currentPhotos=await getPhotos(catId);
   const tiles=[];
   if(editMode){
@@ -777,10 +827,11 @@ async function renderCategory(catId){
     <div class="topbar">
       <button class="back" id="backBtn">‹</button>
       <div class="titles">
-        <div class="crumb">${esc(SECTIONS[cat.section].title)}</div>
+        <div class="crumb">${esc(sec?sec.title:"")}</div>
         <h1>${esc(cat.name)}</h1>
       </div>
       <div class="actions">
+        ${currentPhotos.length>1?`<button class="iconbtn" id="playBtn">▶&nbsp; Diaporama</button>`:""}
         ${editMode?`<button class="iconbtn solid" id="addPhotosTop">+ Photos</button>`:""}
         ${editBtnHtml()}
       </div>
@@ -792,6 +843,7 @@ async function renderCategory(catId){
   const pick=()=>{$("#filePicker").dataset.catId=catId;$("#filePicker").click()};
   const a1=$("#addPhotos");if(a1)a1.onclick=pick;
   const a2=$("#addPhotosTop");if(a2)a2.onclick=pick;
+  const pb=$("#playBtn");if(pb)pb.onclick=startSlideshow;
   document.querySelectorAll(".ph-card").forEach(el=>{
     el.onclick=e=>{
       if(e.target.closest(".edit-tools"))return;
@@ -884,11 +936,27 @@ function openViewer(index){
   requestAnimationFrame(()=>{vTrack.scrollLeft=index*vTrack.clientWidth});
 }
 function closeViewer(){
+  stopSlideshow();
   viewer.classList.remove("open");
   document.body.style.overflow="";
   viewerUrls.forEach(u=>URL.revokeObjectURL(u));viewerUrls=[];
   if(current.catId)renderCategory(current.catId);
 }
+/* ---- diaporama ---- */
+let slideTimer=null;
+function startSlideshow(){
+  if(!currentPhotos.length)return;
+  openViewer(0);
+  clearInterval(slideTimer);
+  slideTimer=setInterval(()=>{
+    if(!viewer.classList.contains("open"))return stopSlideshow();
+    viewerIndex=(viewerIndex+1)%currentPhotos.length;
+    vTrack.scrollTo({left:viewerIndex*vTrack.clientWidth,behavior:viewerIndex===0?"auto":"smooth"});
+    updateViewerUI();
+  },2600);
+}
+function stopSlideshow(){if(slideTimer){clearInterval(slideTimer);slideTimer=null}}
+vTrack.addEventListener("pointerdown",stopSlideshow);
 $("#viewerClose").onclick=closeViewer;
 vTrack.addEventListener("scroll",()=>{
   clearTimeout(vTrack._t);
@@ -928,76 +996,122 @@ function updateViewerUI(){
 const editor=$("#editor"),eCanvas=$("#eCanvas");
 let eState=null;
 
+const CORNER_HIT=30;
 async function openEditor(p){
   const u=URL.createObjectURL(bufToBlob(p.full));
   let img;
   try{img=await loadImage(u)}finally{URL.revokeObjectURL(u)}
-  eState={p,img,rot:0,scale:1,ox:0,oy:0,b:100,c:100,s:100,ratio:null,frameW:0,frameH:0};
+  eState={p,img,rot:0,b:100,c:100,s:100,ratio:null,rect:null,dispW:0,dispH:0};
   $("#eB").value=100;$("#eC").value=100;$("#eS").value=100;
   document.querySelectorAll(".ratio-btn[data-ratio]").forEach(b=>b.classList.toggle("active",b.dataset.ratio===""));
   editor.classList.add("open");
-  requestAnimationFrame(()=>{sizeEditor();drawEditor()});
+  sizeEditor(true);drawEditor();
 }
 function closeEditor(){editor.classList.remove("open");eState=null}
 function eImgDims(){
   const {img,rot}=eState;
   return rot%180?{w:img.naturalHeight,h:img.naturalWidth}:{w:img.naturalWidth,h:img.naturalHeight};
 }
-function sizeEditor(){
+function sizeEditor(resetRect){
   const box=eCanvas.parentElement;
   const boxW=box.clientWidth-24,boxH=box.clientHeight-24;
   const d=eImgDims();
-  const ratio=eState.ratio||d.w/d.h;
-  let fw=boxW,fh=fw/ratio;
-  if(fh>boxH){fh=boxH;fw=fh*ratio}
-  eState.frameW=fw;eState.frameH=fh;
+  let dw=boxW,dh=dw*d.h/d.w;
+  if(dh>boxH){dh=boxH;dw=dh*d.w/d.h}
+  eState.dispW=dw;eState.dispH=dh;
   const dpr=Math.min(devicePixelRatio||1,2);
-  eCanvas.width=Math.round(fw*dpr);eCanvas.height=Math.round(fh*dpr);
-  eCanvas.style.width=fw+"px";eCanvas.style.height=fh+"px";
+  eCanvas.width=Math.round(dw*dpr);eCanvas.height=Math.round(dh*dpr);
+  eCanvas.style.width=dw+"px";eCanvas.style.height=dh+"px";
+  if(resetRect||!eState.rect)applyRatioRect();
+}
+function applyRatioRect(){
+  const {dispW,dispH,ratio}=eState;
+  if(!ratio){eState.rect={x:0,y:0,w:dispW,h:dispH};return}
+  let w=dispW,h=w/ratio;
+  if(h>dispH){h=dispH;w=h*ratio}
+  eState.rect={x:(dispW-w)/2,y:(dispH-h)/2,w,h};
 }
 function drawEditor(){
   if(!eState)return;
-  const {img,rot,scale,ox,oy,frameW,frameH,b,c,s}=eState;
+  const {img,rot,dispW,rect,b,c,s}=eState;
   const ctx=eCanvas.getContext("2d");
-  const dpr=eCanvas.width/frameW;
+  const dpr=eCanvas.width/dispW;
   const d=eImgDims();
-  const base=Math.max(frameW/d.w,frameH/d.h);
-  const k=base*scale*dpr;
+  const k=dispW/d.w*dpr;
   ctx.setTransform(1,0,0,1,0,0);
-  ctx.fillStyle="#000";ctx.fillRect(0,0,eCanvas.width,eCanvas.height);
-  ctx.translate(eCanvas.width/2+ox*dpr,eCanvas.height/2+oy*dpr);
+  ctx.clearRect(0,0,eCanvas.width,eCanvas.height);
+  ctx.save();
+  ctx.translate(eCanvas.width/2,eCanvas.height/2);
   ctx.rotate(rot*Math.PI/180);
   ctx.scale(k,k);
   ctx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);
+  ctx.restore();
+  const rx=rect.x*dpr,ry=rect.y*dpr,rw=rect.w*dpr,rh=rect.h*dpr;
+  ctx.fillStyle="rgba(5,4,3,.62)";
+  ctx.fillRect(0,0,eCanvas.width,ry);
+  ctx.fillRect(0,ry+rh,eCanvas.width,eCanvas.height-ry-rh);
+  ctx.fillRect(0,ry,rx,rh);
+  ctx.fillRect(rx+rw,ry,eCanvas.width-rx-rw,rh);
+  ctx.strokeStyle="rgba(201,163,92,.4)";ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(rx+rw/3,ry);ctx.lineTo(rx+rw/3,ry+rh);
+  ctx.moveTo(rx+2*rw/3,ry);ctx.lineTo(rx+2*rw/3,ry+rh);
+  ctx.moveTo(rx,ry+rh/3);ctx.lineTo(rx+rw,ry+rh/3);
+  ctx.moveTo(rx,ry+2*rh/3);ctx.lineTo(rx+rw,ry+2*rh/3);
+  ctx.stroke();
+  ctx.strokeStyle="#c9a35c";ctx.lineWidth=2;
+  ctx.strokeRect(rx,ry,rw,rh);
+  const hs=13*dpr;
+  ctx.fillStyle="#e8cf9a";
+  [[rx,ry],[rx+rw,ry],[rx,ry+rh],[rx+rw,ry+rh]].forEach(([hx,hy])=>{
+    ctx.fillRect(hx-hs/2,hy-hs/2,hs,hs);
+  });
   eCanvas.style.filter=`brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
 }
-/* pan + pinch */
-const ePts=new Map();
-let ePinchDist=0,ePinchScale=1;
+/* déplacement du cadre + coins étirables */
+let eDrag=null;
+function ePos(e){
+  const r=eCanvas.getBoundingClientRect();
+  return {x:e.clientX-r.left,y:e.clientY-r.top};
+}
 eCanvas.addEventListener("pointerdown",e=>{
+  if(!eState||!eState.rect)return;
   eCanvas.setPointerCapture(e.pointerId);
-  ePts.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(ePts.size===2){
-    const [a,b]=[...ePts.values()];
-    ePinchDist=Math.hypot(a.x-b.x,a.y-b.y);
-    ePinchScale=eState.scale;
+  const pt=ePos(e),r=eState.rect;
+  const corners=[["nw",r.x,r.y],["ne",r.x+r.w,r.y],["sw",r.x,r.y+r.h],["se",r.x+r.w,r.y+r.h]];
+  let mode=null;
+  for(const [name,cx,cy] of corners){
+    if(Math.abs(pt.x-cx)<CORNER_HIT&&Math.abs(pt.y-cy)<CORNER_HIT){mode=name;break}
   }
+  if(!mode&&pt.x>r.x&&pt.x<r.x+r.w&&pt.y>r.y&&pt.y<r.y+r.h)mode="move";
+  if(mode)eDrag={mode,start:pt,rect:{...r}};
 });
 eCanvas.addEventListener("pointermove",e=>{
-  if(!eState||!ePts.has(e.pointerId))return;
-  const prev=ePts.get(e.pointerId);
-  ePts.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(ePts.size===1){
-    eState.ox+=e.clientX-prev.x;
-    eState.oy+=e.clientY-prev.y;
-  }else if(ePts.size===2&&ePinchDist>0){
-    const [a,b]=[...ePts.values()];
-    const dist=Math.hypot(a.x-b.x,a.y-b.y);
-    eState.scale=Math.min(5,Math.max(1,ePinchScale*dist/ePinchDist));
+  if(!eState||!eDrag)return;
+  const pt=ePos(e);
+  const dx=pt.x-eDrag.start.x,dy=pt.y-eDrag.start.y;
+  const o=eDrag.rect,r=eState.rect,{dispW,dispH,ratio}=eState;
+  const MIN=48;
+  if(eDrag.mode==="move"){
+    r.x=Math.min(Math.max(0,o.x+dx),dispW-r.w);
+    r.y=Math.min(Math.max(0,o.y+dy),dispH-r.h);
+  }else{
+    let x1=o.x,y1=o.y,x2=o.x+o.w,y2=o.y+o.h;
+    if(eDrag.mode.includes("w"))x1=Math.min(Math.max(0,o.x+dx),x2-MIN);
+    if(eDrag.mode.includes("e"))x2=Math.max(Math.min(dispW,o.x+o.w+dx),x1+MIN);
+    if(eDrag.mode.includes("n"))y1=Math.min(Math.max(0,o.y+dy),y2-MIN);
+    if(eDrag.mode.includes("s"))y2=Math.max(Math.min(dispH,o.y+o.h+dy),y1+MIN);
+    if(ratio){
+      let w=x2-x1,h=w/ratio;
+      if(eDrag.mode.includes("n"))y1=y2-h;else y2=y1+h;
+      if(y1<0){y1=0;h=y2-y1;w=h*ratio;if(eDrag.mode.includes("w"))x1=x2-w;else x2=x1+w}
+      if(y2>dispH){y2=dispH;h=y2-y1;w=h*ratio;if(eDrag.mode.includes("w"))x1=x2-w;else x2=x1+w}
+    }
+    r.x=x1;r.y=y1;r.w=x2-x1;r.h=y2-y1;
   }
   drawEditor();
 });
-function ePtUp(e){ePts.delete(e.pointerId);ePinchDist=0}
+function ePtUp(e){eDrag=null}
 eCanvas.addEventListener("pointerup",ePtUp);
 eCanvas.addEventListener("pointercancel",ePtUp);
 
@@ -1006,14 +1120,12 @@ document.querySelectorAll(".ratio-btn[data-ratio]").forEach(b=>b.onclick=()=>{
   document.querySelectorAll(".ratio-btn[data-ratio]").forEach(x=>x.classList.remove("active"));
   b.classList.add("active");
   eState.ratio=b.dataset.ratio?parseFloat(b.dataset.ratio):null;
-  eState.ox=0;eState.oy=0;
-  sizeEditor();drawEditor();
+  applyRatioRect();drawEditor();
 });
 $("#eRotate").onclick=()=>{
   if(!eState)return;
   eState.rot=(eState.rot+90)%360;
-  eState.ox=0;eState.oy=0;
-  sizeEditor();drawEditor();
+  sizeEditor(true);drawEditor();
 };
 ["eB","eC","eS"].forEach(id=>{
   $("#"+id).addEventListener("input",e=>{
@@ -1038,24 +1150,25 @@ function applyFiltersManually(cnv,b,c,s){
   ctx.putImageData(im,0,0);
 }
 $("#eSave").onclick=async()=>{
-  if(!eState)return;
+  if(!eState||!eState.rect)return;
   progress(true,"Enregistrement…");
   try{
-    const {p,img,rot,scale,ox,oy,frameW,frameH,b,c,s}=eState;
+    const {p,img,rot,dispW,rect,b,c,s}=eState;
     const d=eImgDims();
-    const base=Math.max(frameW/d.w,frameH/d.h);
-    const outW=Math.max(200,Math.min(1800,Math.round(frameW/(base*scale))));
-    const F=outW/frameW;
+    const sScale=dispW/d.w;
+    const sx=rect.x/sScale,sy=rect.y/sScale,sw=rect.w/sScale,sh=rect.h/sScale;
+    const outScale=Math.min(1,1800/Math.max(sw,sh));
     const oc=document.createElement("canvas");
-    oc.width=outW;oc.height=Math.round(frameH*F);
+    oc.width=Math.max(1,Math.round(sw*outScale));
+    oc.height=Math.max(1,Math.round(sh*outScale));
     const ctx=oc.getContext("2d");
     let filterOk=true;
     ctx.filter=`brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
     if(ctx.filter==="none")filterOk=false;
-    ctx.translate(oc.width/2+ox*F,oc.height/2+oy*F);
+    ctx.scale(outScale,outScale);
+    ctx.translate(-sx,-sy);
+    ctx.translate(d.w/2,d.h/2);
     ctx.rotate(rot*Math.PI/180);
-    const k=base*scale*F;
-    ctx.scale(k,k);
     ctx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);
     if(!filterOk&&(b!==100||c!==100||s!==100))applyFiltersManually(oc,b,c,s);
     const full=await new Promise(r=>oc.toBlob(r,"image/jpeg",.85));
@@ -1099,7 +1212,7 @@ async function openSheet(){
       Les photos sont stockées sur cet appareil.<br>
       Pensez à exporter une sauvegarde régulièrement.<br><br>
       Sur iPad : Safari → Partager → « Sur l'écran d'accueil »<br>pour installer l'application.<br><br>
-      Version 1.6
+      Version 1.7
     </div>`;
   sheet.classList.add("open");sheetBackdrop.classList.add("open");
   $("#editSwitch").onclick=()=>{
@@ -1129,16 +1242,17 @@ async function doExport(){
   try{
     const cats=await idbReq(tx("categories").getAll());
     const photos=await idbReq(tx("photos").getAll());
-    const out={app:"aph-catalogue",version:1,exported:new Date().toISOString(),categories:[],photos:[]};
+    const secs=await getSections();
+    const out={app:"aph-catalogue",version:2,exported:new Date().toISOString(),sections:secs,categories:[],photos:[]};
     for(const c of cats){
       const cc={id:c.id,section:c.section,name:c.name,order:c.order,coverId:c.coverId||null};
       if(c.coverThumb)cc.coverThumbB64=await blobToB64(c.coverThumb);
       out.categories.push(cc);
     }
     out.sectionCovers={};
-    for(const sec of ["portfolio","catalogue"]){
-      const v=await getMeta("cover-"+sec);
-      if(v)out.sectionCovers[sec]=await blobToB64(v);
+    for(const sec of secs){
+      const v=await getMeta("cover-"+sec.id);
+      if(v)out.sectionCovers[sec.id]=await blobToB64(v);
     }
     for(let i=0;i<photos.length;i++){
       const p=photos[i];
@@ -1173,6 +1287,11 @@ $("#importPicker").addEventListener("change",async e=>{
   try{
     await idbReq(tx("categories","readwrite").clear());
     await idbReq(tx("photos","readwrite").clear());
+    if(Array.isArray(data.sections)&&data.sections.length){
+      await idbReq(tx("sections","readwrite").clear());
+      const ss=tx("sections","readwrite");
+      data.sections.forEach(s=>ss.put(s));
+    }
     const restoredCats=[];
     for(const c of data.categories){
       const cat={id:c.id,section:c.section,name:c.name,order:c.order,coverId:c.coverId||null};
@@ -1187,10 +1306,11 @@ $("#importPicker").addEventListener("change",async e=>{
         full:await b64ToBlob(p.full),thumb:await b64ToBlob(p.thumb)});
       $("#progressLabel").textContent=`Restauration ${i+1} / ${data.photos.length}`;
     }
-    for(const sec of ["portfolio","catalogue"]){
-      await idbReq(tx("meta","readwrite").delete("cover-"+sec));
-      if(data.sectionCovers&&data.sectionCovers[sec]){
-        await setMeta("cover-"+sec,await blobToBuf(await b64ToBlob(data.sectionCovers[sec])));
+    const secsNow=await getSections();
+    for(const sec of secsNow){
+      await idbReq(tx("meta","readwrite").delete("cover-"+sec.id));
+      if(data.sectionCovers&&data.sectionCovers[sec.id]){
+        await setMeta("cover-"+sec.id,await blobToBuf(await b64ToBlob(data.sectionCovers[sec.id])));
       }
     }
     progress(false);toast("Catalogue restauré ✦");renderHome();
@@ -1234,7 +1354,7 @@ if("serviceWorker" in navigator&&location.protocol.startsWith("http")){
   addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 }
 /* debug hook */
-window.APH={addCategory,getCategories,getPhotos,putPhoto,uid,renderHome,renderSection,renderCategory,
+window.APH={addCategory,getCategories,getPhotos,putPhoto,uid,renderHome,renderSection,renderCategory,getSections,addSection,
   set editMode(v){editMode=v;rerender()},get editMode(){return editMode}};
 </script>
 </body>
