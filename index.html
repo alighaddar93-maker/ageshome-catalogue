@@ -145,7 +145,7 @@ img{display:block}
   transition:transform .35s ease,border-color .35s;
 }
 .home-card:active{transform:scale(.985)}
-.home-card .bgcover{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.28;filter:saturate(.85)}
+.home-card img.bgcover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.28;filter:saturate(.85)}
 .home-card .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,11,9,.25),rgba(12,11,9,.75))}
 .home-card .inner{position:relative;z-index:1}
 .home-card .kicker{font-size:11px;letter-spacing:.5em;text-indent:.5em;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
@@ -171,7 +171,7 @@ img{display:block}
   transition:transform .3s ease;
 }
 .cat-card:active{transform:scale(.98)}
-.cat-card .cover{position:absolute;inset:0;background-size:cover;background-position:center;transition:transform .6s ease}
+.cat-card img.cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .6s ease}
 .cat-card .empty-cover{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   background:radial-gradient(400px 260px at 50% 40%,rgba(201,163,92,.10),transparent 70%);
@@ -489,7 +489,8 @@ const app=$("#app");
 let editMode=false;
 let current={name:"home",section:null,catId:null};
 let objectUrls=[];
-function freeUrls(){objectUrls.forEach(u=>URL.revokeObjectURL(u));objectUrls=[]}
+function swapUrlScope(){const old=objectUrls;objectUrls=[];return old}
+function dropUrls(list){if(list.length)setTimeout(()=>list.forEach(u=>URL.revokeObjectURL(u)),2000)}
 function blobUrl(b){const u=URL.createObjectURL(b);objectUrls.push(u);return u}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
@@ -539,7 +540,6 @@ function askConfirm({title,text,okLabel="Confirmer",danger=false}){
 
 /* ================= Screens ================= */
 function setScreen(html){
-  freeUrls();
   app.innerHTML=`<div class="screen">${html}</div>`;
   window.scrollTo(0,0);
 }
@@ -551,6 +551,7 @@ function bindSettingsBtn(){const b=$("#settingsBtn");if(b)b.onclick=openSheet}
 /* ---- Home ---- */
 async function renderHome(){
   current={name:"home",section:null,catId:null};
+  const oldUrls=swapUrlScope();
   const covers={};
   for(const sec of ["portfolio","catalogue"]){
     const cats=await getCategories(sec);
@@ -569,7 +570,7 @@ async function renderHome(){
     <div class="home-cards">
       ${["portfolio","catalogue"].map(sec=>`
         <div class="home-card" data-sec="${sec}">
-          ${covers[sec]?`<div class="bgcover" style="background-image:url('${covers[sec]}')"></div>`:""}
+          ${covers[sec]?`<img class="bgcover" src="${covers[sec]}" alt="" onerror="this.remove()">`:""}
           <div class="veil"></div>
           <div class="inner">
             <div class="kicker">${esc(SECTIONS[sec].kicker)}</div>
@@ -584,11 +585,13 @@ async function renderHome(){
   `);
   document.querySelectorAll(".home-card").forEach(el=>el.onclick=()=>renderSection(el.dataset.sec));
   bindSettingsBtn();
+  dropUrls(oldUrls);
 }
 
 /* ---- Section (categories) ---- */
 async function renderSection(section){
   current={name:"section",section,catId:null};
+  const oldUrls=swapUrlScope();
   const cats=await getCategories(section);
   const cards=[];
   for(const c of cats){
@@ -596,8 +599,8 @@ async function renderSection(section){
     const coverUrl=categoryCoverUrl(c,photos);
     cards.push(`
       <div class="cat-card" data-id="${c.id}">
-        ${coverUrl?`<div class="cover" style="background-image:url('${coverUrl}')"></div>`
-               :`<div class="empty-cover"><img src="logo-mono.png" alt=""></div>`}
+        ${coverUrl?`<img class="cover" src="${coverUrl}" alt="" onerror="this.remove()">`
+               :`<div class="empty-cover"><img src="logo-mono.png" alt="" onerror="this.style.display='none'"></div>`}
         <div class="veil"></div>
         ${editMode?`<div class="edit-tools">
             <button class="mini-btn setcover" data-id="${c.id}" title="Photo principale">🖼</button>
@@ -655,6 +658,7 @@ async function renderSection(section){
     const name=await askText({title:"Nouvelle catégorie",placeholder:"Ex : Luminaires",okLabel:"Créer"});
     if(name){await addCategory(section,name);toast("Catégorie ajoutée");renderSection(section)}
   };
+  dropUrls(oldUrls);
 }
 
 /* ---- Category (photos) ---- */
@@ -663,6 +667,7 @@ async function renderCategory(catId){
   const cat=await getCategory(catId);
   if(!cat){return renderHome()}
   current={name:"category",section:cat.section,catId};
+  const oldUrls=swapUrlScope();
   currentPhotos=await getPhotos(catId);
   const tiles=[];
   if(editMode){
@@ -713,6 +718,7 @@ async function renderCategory(catId){
     const ok=await askConfirm({title:"Supprimer cette photo",text:"La photo sera définitivement supprimée.",danger:true,okLabel:"Supprimer"});
     if(ok){await deletePhoto(b.dataset.id);toast("Photo supprimée");renderCategory(catId)}
   });
+  dropUrls(oldUrls);
 }
 
 /* ---- cover picker ---- */
@@ -838,7 +844,8 @@ async function openSheet(){
       ${nPhotos} photo${nPhotos>1?"s":""} · ${usage}<br><br>
       Les photos sont stockées sur cet appareil.<br>
       Pensez à exporter une sauvegarde régulièrement.<br><br>
-      Sur iPad : Safari → Partager → « Sur l'écran d'accueil »<br>pour installer l'application.
+      Sur iPad : Safari → Partager → « Sur l'écran d'accueil »<br>pour installer l'application.<br><br>
+      Version 1.2
     </div>`;
   sheet.classList.add("open");sheetBackdrop.classList.add("open");
   $("#editSwitch").onclick=()=>{
