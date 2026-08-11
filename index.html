@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ages Home — Catalogue</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ages Home">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0c0b09">
+<style>
+:root{
+  --bg:#0c0b09;
+  --panel:#151310;
+  --panel2:#1c1915;
+  --hair:rgba(201,163,92,.35);
+  --hair2:rgba(201,163,92,.16);
+  --gold:#c9a35c;
+  --gold2:#e8cf9a;
+  --text:#f4efe6;
+  --muted:#a89e8c;
+  --danger:#c96a5c;
+  --serif:'Didot','Bodoni 72','Playfair Display',Georgia,'Times New Roman',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+  --sat:env(safe-area-inset-top,0px);
+  --sab:env(safe-area-inset-bottom,0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:var(--bg);color:var(--text);font-family:var(--sans);
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+.bgphoto{
+  position:fixed;inset:0;z-index:-1;
+  background:
+    radial-gradient(1200px 700px at 50% -10%,rgba(201,163,92,.06),transparent 60%),
+    linear-gradient(180deg,rgba(12,11,9,.78) 0%,rgba(12,11,9,.86) 55%,rgba(12,11,9,.94) 100%),
+    url('bg.jpg') center/cover no-repeat;
+}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+img{display:block}
+::selection{background:rgba(201,163,92,.3)}
+
+/* ---------- Splash ---------- */
+.splash{
+  position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:linear-gradient(180deg,rgba(12,11,9,.50) 0%,rgba(12,11,9,.68) 50%,rgba(12,11,9,.88) 100%);
+  transition:opacity .9s ease,visibility .9s;
+}
+.splash.hidden{opacity:0;visibility:hidden;pointer-events:none}
+.splash .frame{
+  position:absolute;inset:clamp(14px,3vw,34px);
+  border:1px solid var(--hair);
+  animation:frameIn 1.6s cubic-bezier(.2,.7,.2,1) both;
+}
+.splash .frame::after{
+  content:"";position:absolute;inset:7px;border:1px solid var(--hair2);
+}
+.logo-main{
+  width:clamp(240px,30vw,400px);height:auto;
+  margin-bottom:clamp(10px,2vh,20px);
+  animation:fadeUp 1.6s .4s both;
+  filter:drop-shadow(0 0 40px rgba(201,163,92,.28));
+}
+.divider{
+  height:1px;width:140px;margin:clamp(20px,3vh,30px) auto;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  animation:lineGrow 1.4s 1.1s both;
+}
+.tagline{
+  font-size:clamp(12px,1.4vw,15px);letter-spacing:.5em;text-indent:.5em;
+  color:var(--muted);text-transform:uppercase;text-align:center;
+  animation:fadeUp 1.4s 1.4s both;
+}
+.enter-btn{
+  margin-top:clamp(40px,7vh,70px);
+  padding:16px 54px;border:1px solid var(--gold);
+  font-size:14px;letter-spacing:.4em;text-indent:.4em;text-transform:uppercase;
+  color:var(--gold2);position:relative;overflow:hidden;
+  animation:fadeUp 1.4s 1.9s both;transition:background .4s,color .4s;
+}
+.enter-btn:active{background:var(--gold);color:#0c0b09}
+@keyframes frameIn{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:scale(1)}}
+@keyframes lettersIn{from{opacity:0;letter-spacing:.6em;text-indent:.6em}to{opacity:1;letter-spacing:.22em;text-indent:.22em}}
+@keyframes lineGrow{from{width:0;opacity:0}to{width:140px;opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+/* ---------- App shell ---------- */
+#app{min-height:100%;display:flex;flex-direction:column;padding-top:var(--sat);padding-bottom:calc(var(--sab) + 24px)}
+.screen{animation:screenIn .45s ease both;flex:1;display:flex;flex-direction:column}
+@keyframes screenIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.topbar{
+  display:flex;align-items:center;gap:14px;
+  padding:clamp(16px,2.5vw,26px) clamp(20px,3.5vw,40px) 8px;
+}
+.topbar .back{
+  width:44px;height:44px;border:1px solid var(--hair);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--gold2);
+  flex:none;transition:background .3s;
+}
+.topbar .back:active{background:rgba(201,163,92,.15)}
+.topbar .titles{flex:1;min-width:0}
+.topbar .crumb{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.topbar h1{font-family:var(--serif);font-weight:400;font-size:clamp(24px,3.4vw,38px);letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .actions{display:flex;gap:10px;flex:none}
+.iconbtn{
+  height:44px;min-width:44px;padding:0 16px;border:1px solid var(--hair);border-radius:22px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  color:var(--gold2);font-size:13px;letter-spacing:.08em;transition:background .3s;
+}
+.iconbtn:active{background:rgba(201,163,92,.15)}
+.iconbtn.solid{background:var(--gold);color:#171308;border-color:var(--gold);font-weight:600}
+.iconbtn.editing{background:var(--gold);color:#171308;border-color:var(--gold)}
+
+.brandbar{
+  text-align:center;padding:clamp(20px,3vh,34px) 20px 0;
+}
+.brandbar .logo-s{width:clamp(170px,20vw,250px);height:auto;margin:0 auto;filter:drop-shadow(0 0 22px rgba(201,163,92,.22))}
+.cat-card .empty-cover img{margin:0 auto}
+.brandbar p{margin-top:10px;font-size:11px;letter-spacing:.45em;text-indent:.45em;text-transform:uppercase;color:var(--muted)}
+.brandbar .divider{margin-top:clamp(16px,2.4vh,26px)}
+
+/* ---------- Home ---------- */
+.home-cards{
+  flex:1;display:grid;gap:clamp(18px,2.6vw,30px);
+  padding:clamp(20px,3.5vw,44px);
+  grid-template-columns:1fr;align-content:center;
+  max-width:1200px;width:100%;margin:0 auto;
+}
+@media (min-width:820px){.home-cards{grid-template-columns:1fr 1fr}}
+.home-card{
+  position:relative;border:1px solid var(--hair);
+  background:rgba(21,19,16,.55);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  min-height:clamp(240px,38vh,420px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow:hidden;text-align:center;padding:30px;
+  transition:transform .35s ease,border-color .35s;
+}
+.home-card:active{transform:scale(.985)}
+.home-card .bgcover{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.28;filter:saturate(.85)}
+.home-card .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,11,9,.25),rgba(12,11,9,.75))}
+.home-card .inner{position:relative;z-index:1}
+.home-card .kicker{font-size:11px;letter-spacing:.5em;text-indent:.5em;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
+.home-card h2{font-family:var(--serif);font-weight:400;font-size:clamp(34px,4.6vw,56px);letter-spacing:.14em;text-indent:.14em}
+.home-card .sub{margin-top:14px;color:var(--muted);font-size:14px;letter-spacing:.12em}
+.home-card .cta{
+  margin-top:26px;display:inline-block;padding:12px 34px;border:1px solid var(--hair);
+  font-size:12px;letter-spacing:.35em;text-indent:.35em;text-transform:uppercase;color:var(--gold2);
+}
+.home-foot{text-align:center;color:var(--muted);font-size:11px;letter-spacing:.3em;text-transform:uppercase;padding:8px 20px 4px}
+
+/* ---------- Grids ---------- */
+.grid-wrap{padding:clamp(14px,2.5vw,30px) clamp(20px,3.5vw,40px);flex:1}
+.cat-grid{
+  display:grid;gap:clamp(14px,2vw,22px);
+  grid-template-columns:repeat(auto-fill,minmax(min(260px,46vw),1fr));
+}
+.cat-card{
+  position:relative;border:1px solid var(--hair2);
+  background:rgba(21,19,16,.6);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  aspect-ratio:4/3;overflow:hidden;display:flex;align-items:flex-end;
+  transition:transform .3s ease;
+}
+.cat-card:active{transform:scale(.98)}
+.cat-card .cover{position:absolute;inset:0;background-size:cover;background-position:center;transition:transform .6s ease}
+.cat-card .empty-cover{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(400px 260px at 50% 40%,rgba(201,163,92,.10),transparent 70%);
+}
+.cat-card .empty-cover img{width:64px;height:auto;opacity:.35}
+.cat-card .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,11,9,0) 30%,rgba(12,11,9,.85))}
+.cat-card .label{position:relative;z-index:1;width:100%;padding:16px 18px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.cat-card .name{font-family:var(--serif);font-size:clamp(20px,2.4vw,27px);letter-spacing:.06em}
+.cat-card .count{font-size:11px;letter-spacing:.2em;color:var(--muted);flex:none}
+.cat-card .edit-tools{position:absolute;top:10px;right:10px;z-index:2;display:flex;gap:8px}
+.mini-btn{
+  width:40px;height:40px;border-radius:50%;background:rgba(12,11,9,.72);
+  border:1px solid var(--hair);display:flex;align-items:center;justify-content:center;
+  font-size:15px;color:var(--gold2);backdrop-filter:blur(6px);
+}
+.mini-btn.danger{color:var(--danger);border-color:rgba(201,106,92,.4)}
+.add-card{
+  border:1px dashed var(--hair);background:transparent;aspect-ratio:4/3;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  color:var(--gold2);
+}
+.add-card .plus{width:52px;height:52px;border:1px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:300}
+.add-card .lbl{font-size:12px;letter-spacing:.3em;text-indent:.3em;text-transform:uppercase}
+
+.photo-grid{
+  display:grid;gap:clamp(10px,1.4vw,16px);
+  grid-template-columns:repeat(auto-fill,minmax(min(200px,44vw),1fr));
+}
+.ph-card{
+  position:relative;aspect-ratio:1/1;overflow:hidden;background:var(--panel);
+  border:1px solid var(--hair2);
+}
+.ph-card img{width:100%;height:100%;object-fit:cover;transition:transform .5s ease}
+.ph-card:active img{transform:scale(1.05)}
+.ph-card .edit-tools{position:absolute;top:8px;right:8px;display:flex;gap:8px;z-index:2}
+.ph-add{
+  border:1px dashed var(--hair);aspect-ratio:1/1;background:transparent;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--gold2);
+}
+.ph-add .plus{width:46px;height:46px;border:1px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:300}
+.ph-add .lbl{font-size:11px;letter-spacing:.25em;text-indent:.25em;text-transform:uppercase}
+
+.empty-state{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:16px;color:var(--muted);text-align:center;padding:40px;min-height:40vh;
+}
+.empty-state .orn{font-family:var(--serif);font-size:40px;color:rgba(201,163,92,.4)}
+.empty-state p{font-size:14px;letter-spacing:.1em;line-height:1.8;max-width:420px}
+
+/* ---------- Viewer ---------- */
+.viewer{
+  position:fixed;inset:0;z-index:80;background:rgba(8,7,5,.98);
+  display:none;flex-direction:column;
+}
+.viewer.open{display:flex}
+.viewer .track{
+  flex:1;display:flex;overflow-x:auto;overflow-y:hidden;
+  scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.viewer .track::-webkit-scrollbar{display:none}
+.viewer .slide{
+  flex:none;width:100vw;height:100%;scroll-snap-align:center;
+  display:flex;align-items:center;justify-content:center;padding:calc(var(--sat) + 64px) 16px calc(var(--sab) + 84px);
+}
+.viewer .slide img{max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+.viewer .vtop{
+  position:absolute;top:0;left:0;right:0;z-index:2;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:calc(var(--sat) + 12px) 18px 12px;
+  background:linear-gradient(180deg,rgba(8,7,5,.85),transparent);
+}
+.viewer .vcount{font-size:12px;letter-spacing:.3em;color:var(--muted)}
+.viewer .vbottom{
+  position:absolute;left:0;right:0;bottom:0;z-index:2;
+  padding:14px 18px calc(var(--sab) + 16px);
+  background:linear-gradient(0deg,rgba(8,7,5,.9),transparent);
+  display:flex;align-items:center;gap:12px;justify-content:center;
+}
+.viewer .caption{font-family:var(--serif);font-size:17px;letter-spacing:.05em;color:var(--text);text-align:center;flex:1}
+.viewer input.caption-edit{
+  flex:1;background:rgba(255,255,255,.06);border:1px solid var(--hair);color:var(--text);
+  padding:12px 14px;font-size:15px;border-radius:4px;font-family:var(--serif);letter-spacing:.05em;text-align:center;
+}
+.viewer input.caption-edit::placeholder{color:var(--muted)}
+
+/* ---------- Panels / modals ---------- */
+.sheet-backdrop{position:fixed;inset:0;z-index:90;background:rgba(5,4,3,.6);backdrop-filter:blur(3px);display:none}
+.sheet-backdrop.open{display:block}
+.sheet{
+  position:fixed;top:0;right:0;bottom:0;z-index:95;width:min(420px,92vw);
+  background:var(--panel2);border-left:1px solid var(--hair);
+  transform:translateX(105%);transition:transform .4s cubic-bezier(.2,.7,.2,1);
+  display:flex;flex-direction:column;padding:calc(var(--sat) + 24px) 24px calc(var(--sab) + 24px);
+  overflow-y:auto;
+}
+.sheet.open{transform:translateX(0)}
+.sheet h2{font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:.1em;margin-bottom:6px}
+.sheet .s-sub{color:var(--muted);font-size:12px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:26px}
+.s-row{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:18px 0;border-bottom:1px solid var(--hair2);
+}
+.s-row .s-label{font-size:15px;letter-spacing:.04em}
+.s-row .s-hint{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5}
+.switch{
+  width:56px;height:32px;border-radius:16px;border:1px solid var(--hair);position:relative;flex:none;
+  background:rgba(255,255,255,.05);transition:background .3s;
+}
+.switch::after{
+  content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;
+  background:var(--muted);transition:transform .3s,background .3s;
+}
+.switch.on{background:rgba(201,163,92,.3);border-color:var(--gold)}
+.switch.on::after{transform:translateX(24px);background:var(--gold2)}
+.s-btn{
+  width:100%;margin-top:14px;padding:15px;border:1px solid var(--hair);
+  font-size:13px;letter-spacing:.25em;text-indent:.25em;text-transform:uppercase;color:var(--gold2);
+  transition:background .3s;
+}
+.s-btn:active{background:rgba(201,163,92,.15)}
+.s-btn.danger{color:var(--danger);border-color:rgba(201,106,92,.4)}
+.s-note{margin-top:auto;padding-top:26px;color:var(--muted);font-size:11px;letter-spacing:.1em;line-height:1.8;text-align:center}
+
+.modal-backdrop{
+  position:fixed;inset:0;z-index:110;background:rgba(5,4,3,.7);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;padding:24px;
+}
+.modal-backdrop.open{display:flex}
+.modal{
+  width:min(460px,100%);background:var(--panel2);border:1px solid var(--hair);
+  padding:34px 30px;animation:screenIn .3s ease both;
+}
+.modal h3{font-family:var(--serif);font-weight:400;font-size:24px;letter-spacing:.08em;margin-bottom:12px}
+.modal p{color:var(--muted);font-size:14px;line-height:1.7;margin-bottom:22px}
+.modal input[type=text]{
+  width:100%;background:rgba(255,255,255,.05);border:1px solid var(--hair);color:var(--text);
+  padding:14px;font-size:16px;border-radius:4px;margin-bottom:22px;letter-spacing:.04em;
+}
+.modal .m-actions{display:flex;gap:12px;justify-content:flex-end}
+.m-btn{padding:13px 26px;border:1px solid var(--hair);font-size:12px;letter-spacing:.2em;text-indent:.2em;text-transform:uppercase;color:var(--muted)}
+.m-btn.primary{color:#171308;background:var(--gold);border-color:var(--gold);font-weight:600}
+.m-btn.danger{color:#fff;background:var(--danger);border-color:var(--danger)}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(var(--sab) + 30px);transform:translateX(-50%) translateY(20px);
+  z-index:120;background:var(--panel2);border:1px solid var(--gold);color:var(--text);
+  padding:14px 26px;font-size:14px;letter-spacing:.06em;opacity:0;transition:all .35s ease;
+  pointer-events:none;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.progress-veil{
+  position:fixed;inset:0;z-index:115;background:rgba(8,7,5,.8);backdrop-filter:blur(4px);
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+}
+.progress-veil.open{display:flex}
+.progress-veil .ring{
+  width:56px;height:56px;border:2px solid var(--hair2);border-top-color:var(--gold);
+  border-radius:50%;animation:spin 1s linear infinite;
+}
+.progress-veil .plabel{font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold2)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="bgphoto"></div>
+
+<div class="splash" id="splash">
+  <div class="frame"></div>
+  <img class="logo-main" src="logo-full.png" alt="AGES HOME">
+  <div class="divider"></div>
+  <div class="tagline">Mobilier &nbsp;·&nbsp; Décoration &nbsp;·&nbsp; Art de vivre</div>
+  <button class="enter-btn" id="enterBtn">Découvrir</button>
+</div>
+
+<div id="app"></div>
+
+<div class="viewer" id="viewer">
+  <div class="vtop">
+    <button class="iconbtn" id="viewerClose">✕&nbsp; Fermer</button>
+    <span class="vcount" id="viewerCount"></span>
+    <span id="viewerTools" style="display:flex;gap:10px"></span>
+  </div>
+  <div class="track" id="viewerTrack"></div>
+  <div class="vbottom" id="viewerBottom"></div>
+</div>
+
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<div class="sheet" id="sheet"></div>
+
+<div class="modal-backdrop" id="modalBackdrop"></div>
+
+<div class="toast" id="toast"></div>
+
+<div class="progress-veil" id="progressVeil">
+  <div class="ring"></div>
+  <div class="plabel" id="progressLabel">Importation…</div>
+</div>
+
+<input type="file" id="filePicker" accept="image/*" multiple style="display:none">
+<input type="file" id="importPicker" accept=".json,application/json" style="display:none">
+
+<script>
+"use strict";
+/* ================= IndexedDB ================= */
+const DB_NAME="aph-catalogue", DB_VERSION=1;
+let db=null;
+
+function openDB(){
+  return new Promise((res,rej)=>{
+    const rq=indexedDB.open(DB_NAME,DB_VERSION);
+    rq.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains("categories")){
+        const s=d.createObjectStore("categories",{keyPath:"id"});
+        s.createIndex("section","section");
+      }
+      if(!d.objectStoreNames.contains("photos")){
+        const s=d.createObjectStore("photos",{keyPath:"id"});
+        s.createIndex("categoryId","categoryId");
+      }
+      if(!d.objectStoreNames.contains("meta")){
+        d.createObjectStore("meta",{keyPath:"key"});
+      }
+    };
+    rq.onsuccess=()=>{db=rq.result;res(db)};
+    rq.onerror=()=>rej(rq.error);
+  });
+}
+function tx(store,mode="readonly"){return db.transaction(store,mode).objectStore(store)}
+function idbReq(r){return new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+
+/* ================= Data ================= */
+const DEFAULT_CATS=["Salon","Chambre","Salle à manger","Chaises","Bureaux","Chaises de bureau","Céramique","Vasques"];
+const SECTIONS={portfolio:{title:"Portfolio",kicker:"Nos réalisations",sub:"Nos projets réalisés chez nos clients"},
+                catalogue:{title:"Catalogue",kicker:"Nos collections",sub:"Nos produits disponibles à la commande"}};
+
+async function seedIfNeeded(){
+  const done=await idbReq(tx("meta").get("seeded"));
+  if(done)return;
+  const s=tx("categories","readwrite");
+  let order=0;
+  for(const section of ["portfolio","catalogue"]){
+    for(const name of DEFAULT_CATS){
+      s.put({id:uid()+order,section,name,order:order++,coverId:null});
+    }
+  }
+  await idbReq(tx("meta","readwrite").put({key:"seeded",value:true}));
+}
+async function getCategories(section){
+  const all=await idbReq(tx("categories").index("section").getAll(section));
+  return all.sort((a,b)=>a.order-b.order);
+}
+async function getCategory(id){return idbReq(tx("categories").get(id))}
+async function addCategory(section,name){
+  const all=await getCategories(section);
+  const order=all.length?Math.max(...all.map(c=>c.order))+1:0;
+  const cat={id:uid(),section,name,order,coverId:null};
+  await idbReq(tx("categories","readwrite").put(cat));
+  return cat;
+}
+async function renameCategory(id,name){
+  const c=await getCategory(id);c.name=name;
+  await idbReq(tx("categories","readwrite").put(c));
+}
+async function deleteCategory(id){
+  const photos=await getPhotos(id);
+  const ps=tx("photos","readwrite");
+  photos.forEach(p=>ps.delete(p.id));
+  await idbReq(tx("categories","readwrite").delete(id));
+}
+async function getPhotos(categoryId){
+  const all=await idbReq(tx("photos").index("categoryId").getAll(categoryId));
+  return all.sort((a,b)=>a.order-b.order);
+}
+async function putPhoto(p){await idbReq(tx("photos","readwrite").put(p))}
+async function deletePhoto(id){await idbReq(tx("photos","readwrite").delete(id))}
+async function setCover(catId,photoId){
+  const c=await getCategory(catId);c.coverId=photoId;
+  await idbReq(tx("categories","readwrite").put(c));
+}
+async function countAllPhotos(){return idbReq(tx("photos").count())}
+
+/* ================= Images ================= */
+function loadImage(url){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url})}
+function resizeToBlob(img,maxDim,quality){
+  const scale=Math.min(1,maxDim/Math.max(img.naturalWidth,img.naturalHeight));
+  const w=Math.round(img.naturalWidth*scale),h=Math.round(img.naturalHeight*scale);
+  const c=document.createElement("canvas");c.width=w;c.height=h;
+  c.getContext("2d").drawImage(img,0,0,w,h);
+  return new Promise(res=>c.toBlob(res,"image/jpeg",quality));
+}
+async function processFile(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await loadImage(url);
+    const full=await resizeToBlob(img,1800,.85);
+    const thumb=await resizeToBlob(img,480,.75);
+    return {full,thumb};
+  }finally{URL.revokeObjectURL(url)}
+}
+
+/* ================= UI state ================= */
+const $=s=>document.querySelector(s);
+const app=$("#app");
+let editMode=false;
+let current={name:"home",section:null,catId:null};
+let objectUrls=[];
+function freeUrls(){objectUrls.forEach(u=>URL.revokeObjectURL(u));objectUrls=[]}
+function blobUrl(b){const u=URL.createObjectURL(b);objectUrls.push(u);return u}
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function toast(msg){
+  const t=$("#toast");t.textContent=msg;t.classList.add("show");
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2600);
+}
+function progress(show,label){
+  $("#progressVeil").classList.toggle("open",!!show);
+  if(label)$("#progressLabel").textContent=label;
+}
+
+/* ---- modals ---- */
+function askText({title,text,value="",placeholder="",okLabel="Valider"}){
+  return new Promise(res=>{
+    const bd=$("#modalBackdrop");
+    bd.innerHTML=`<div class="modal">
+      <h3>${esc(title)}</h3>${text?`<p>${esc(text)}</p>`:""}
+      <input type="text" id="mInput" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off">
+      <div class="m-actions">
+        <button class="m-btn" id="mCancel">Annuler</button>
+        <button class="m-btn primary" id="mOk">${esc(okLabel)}</button>
+      </div></div>`;
+    bd.classList.add("open");
+    const input=$("#mInput");setTimeout(()=>input.focus(),80);
+    const close=v=>{bd.classList.remove("open");bd.innerHTML="";res(v)};
+    $("#mCancel").onclick=()=>close(null);
+    $("#mOk").onclick=()=>close(input.value.trim()||null);
+    input.onkeydown=e=>{if(e.key==="Enter")close(input.value.trim()||null)};
+  });
+}
+function askConfirm({title,text,okLabel="Confirmer",danger=false}){
+  return new Promise(res=>{
+    const bd=$("#modalBackdrop");
+    bd.innerHTML=`<div class="modal">
+      <h3>${esc(title)}</h3><p>${esc(text)}</p>
+      <div class="m-actions">
+        <button class="m-btn" id="mCancel">Annuler</button>
+        <button class="m-btn ${danger?"danger":"primary"}" id="mOk">${esc(okLabel)}</button>
+      </div></div>`;
+    bd.classList.add("open");
+    const close=v=>{bd.classList.remove("open");bd.innerHTML="";res(v)};
+    $("#mCancel").onclick=()=>close(false);
+    $("#mOk").onclick=()=>close(true);
+  });
+}
+
+/* ================= Screens ================= */
+function setScreen(html){
+  freeUrls();
+  app.innerHTML=`<div class="screen">${html}</div>`;
+  window.scrollTo(0,0);
+}
+function editBtnHtml(){
+  return `<button class="iconbtn ${editMode?"editing":""}" id="settingsBtn">${editMode?"✎ Édition":"⚙"}</button>`;
+}
+function bindSettingsBtn(){const b=$("#settingsBtn");if(b)b.onclick=openSheet}
+
+/* ---- Home ---- */
+async function renderHome(){
+  current={name:"home",section:null,catId:null};
+  const covers={};
+  for(const sec of ["portfolio","catalogue"]){
+    const cats=await getCategories(sec);
+    for(const c of cats){
+      const photos=await getPhotos(c.id);
+      if(photos.length){
+        const cover=photos.find(p=>p.id===c.coverId)||photos[0];
+        covers[sec]=blobUrl(cover.thumb);break;
+      }
+    }
+  }
+  setScreen(`
+    <div class="brandbar">
+      <img class="logo-s" src="logo-full.png" alt="AGES HOME">
+      <p>Mobilier · Décoration · Art de vivre</p>
+      <div class="divider"></div>
+    </div>
+    <div class="home-cards">
+      ${["portfolio","catalogue"].map(sec=>`
+        <div class="home-card" data-sec="${sec}">
+          ${covers[sec]?`<div class="bgcover" style="background-image:url('${covers[sec]}')"></div>`:""}
+          <div class="veil"></div>
+          <div class="inner">
+            <div class="kicker">${esc(SECTIONS[sec].kicker)}</div>
+            <h2>${esc(SECTIONS[sec].title.toUpperCase())}</h2>
+            <div class="sub">${esc(SECTIONS[sec].sub)}</div>
+            <span class="cta">Découvrir</span>
+          </div>
+        </div>`).join("")}
+    </div>
+    <div class="home-foot">Ages Home &nbsp;—&nbsp; Libreville, Gabon</div>
+    <div style="position:fixed;top:calc(var(--sat) + 14px);right:16px;z-index:5">${editBtnHtml()}</div>
+  `);
+  document.querySelectorAll(".home-card").forEach(el=>el.onclick=()=>renderSection(el.dataset.sec));
+  bindSettingsBtn();
+}
+
+/* ---- Section (categories) ---- */
+async function renderSection(section){
+  current={name:"section",section,catId:null};
+  const cats=await getCategories(section);
+  const cards=[];
+  for(const c of cats){
+    const photos=await getPhotos(c.id);
+    const cover=photos.find(p=>p.id===c.coverId)||photos[0];
+    cards.push(`
+      <div class="cat-card" data-id="${c.id}">
+        ${cover?`<div class="cover" style="background-image:url('${blobUrl(cover.thumb)}')"></div>`
+               :`<div class="empty-cover"><img src="logo-mono.png" alt=""></div>`}
+        <div class="veil"></div>
+        ${editMode?`<div class="edit-tools">
+            <button class="mini-btn rename" data-id="${c.id}" title="Renommer">✎</button>
+            <button class="mini-btn danger delete" data-id="${c.id}" title="Supprimer">🗑</button>
+          </div>`:""}
+        <div class="label">
+          <span class="name">${esc(c.name)}</span>
+          <span class="count">${photos.length||""}</span>
+        </div>
+      </div>`);
+  }
+  if(editMode){
+    cards.push(`<button class="add-card" id="addCat">
+      <span class="plus">+</span><span class="lbl">Nouvelle catégorie</span></button>`);
+  }
+  setScreen(`
+    <div class="topbar">
+      <button class="back" id="backBtn">‹</button>
+      <div class="titles">
+        <div class="crumb">Ages Home · ${esc(SECTIONS[section].kicker)}</div>
+        <h1>${esc(SECTIONS[section].title)}</h1>
+      </div>
+      <div class="actions">${editBtnHtml()}</div>
+    </div>
+    <div class="grid-wrap"><div class="cat-grid">${cards.join("")}</div></div>
+  `);
+  $("#backBtn").onclick=renderHome;
+  bindSettingsBtn();
+  document.querySelectorAll(".cat-card").forEach(el=>{
+    el.onclick=e=>{
+      if(e.target.closest(".edit-tools"))return;
+      renderCategory(el.dataset.id);
+    };
+  });
+  document.querySelectorAll(".rename").forEach(b=>b.onclick=async()=>{
+    const c=await getCategory(b.dataset.id);
+    const name=await askText({title:"Renommer la catégorie",value:c.name});
+    if(name){await renameCategory(c.id,name);renderSection(section)}
+  });
+  document.querySelectorAll(".delete").forEach(b=>b.onclick=async()=>{
+    const c=await getCategory(b.dataset.id);
+    const n=(await getPhotos(c.id)).length;
+    const ok=await askConfirm({title:`Supprimer « ${c.name} »`,danger:true,okLabel:"Supprimer",
+      text:n?`Cette catégorie contient ${n} photo${n>1?"s":""}. Tout sera définitivement supprimé.`
+            :"Cette catégorie est vide. La supprimer ?"});
+    if(ok){await deleteCategory(c.id);toast("Catégorie supprimée");renderSection(section)}
+  });
+  const ac=$("#addCat");
+  if(ac)ac.onclick=async()=>{
+    const name=await askText({title:"Nouvelle catégorie",placeholder:"Ex : Luminaires",okLabel:"Créer"});
+    if(name){await addCategory(section,name);toast("Catégorie ajoutée");renderSection(section)}
+  };
+}
+
+/* ---- Category (photos) ---- */
+let currentPhotos=[];
+async function renderCategory(catId){
+  const cat=await getCategory(catId);
+  if(!cat){return renderHome()}
+  current={name:"category",section:cat.section,catId};
+  currentPhotos=await getPhotos(catId);
+  const tiles=[];
+  if(editMode){
+    tiles.push(`<button class="ph-add" id="addPhotos">
+      <span class="plus">+</span><span class="lbl">Ajouter des photos</span></button>`);
+  }
+  currentPhotos.forEach((p,i)=>{
+    tiles.push(`<div class="ph-card" data-i="${i}">
+      <img src="${blobUrl(p.thumb)}" alt="">
+      ${editMode?`<div class="edit-tools">
+        <button class="mini-btn danger del-ph" data-id="${p.id}">🗑</button>
+      </div>`:""}
+    </div>`);
+  });
+  const body=currentPhotos.length||editMode
+    ?`<div class="grid-wrap"><div class="photo-grid">${tiles.join("")}</div></div>`
+    :`<div class="empty-state">
+        <div class="orn">❖</div>
+        <p>Cette collection sera bientôt dévoilée.<br>
+        <span style="font-size:12px;opacity:.7">(Activez le mode édition via ⚙ pour ajouter des photos)</span></p>
+      </div>`;
+  setScreen(`
+    <div class="topbar">
+      <button class="back" id="backBtn">‹</button>
+      <div class="titles">
+        <div class="crumb">${esc(SECTIONS[cat.section].title)}</div>
+        <h1>${esc(cat.name)}</h1>
+      </div>
+      <div class="actions">
+        ${editMode?`<button class="iconbtn solid" id="addPhotosTop">+ Photos</button>`:""}
+        ${editBtnHtml()}
+      </div>
+    </div>
+    ${body}
+  `);
+  $("#backBtn").onclick=()=>renderSection(cat.section);
+  bindSettingsBtn();
+  const pick=()=>{$("#filePicker").dataset.catId=catId;$("#filePicker").click()};
+  const a1=$("#addPhotos");if(a1)a1.onclick=pick;
+  const a2=$("#addPhotosTop");if(a2)a2.onclick=pick;
+  document.querySelectorAll(".ph-card").forEach(el=>{
+    el.onclick=e=>{
+      if(e.target.closest(".edit-tools"))return;
+      openViewer(parseInt(el.dataset.i,10));
+    };
+  });
+  document.querySelectorAll(".del-ph").forEach(b=>b.onclick=async()=>{
+    const ok=await askConfirm({title:"Supprimer cette photo",text:"La photo sera définitivement supprimée.",danger:true,okLabel:"Supprimer"});
+    if(ok){await deletePhoto(b.dataset.id);toast("Photo supprimée");renderCategory(catId)}
+  });
+}
+
+/* ---- file import ---- */
+$("#filePicker").addEventListener("change",async e=>{
+  const files=[...e.target.files];
+  const catId=e.target.dataset.catId;
+  e.target.value="";
+  if(!files.length||!catId)return;
+  progress(true,`Importation 0 / ${files.length}`);
+  let ok=0;
+  const base=Date.now();
+  for(let i=0;i<files.length;i++){
+    try{
+      const {full,thumb}=await processFile(files[i]);
+      await putPhoto({id:uid(),categoryId:catId,full,thumb,caption:"",order:base+i,created:Date.now()});
+      ok++;
+    }catch(err){console.error("import",err)}
+    $("#progressLabel").textContent=`Importation ${i+1} / ${files.length}`;
+  }
+  progress(false);
+  toast(ok===files.length?`${ok} photo${ok>1?"s":""} ajoutée${ok>1?"s":""} ✦`:`${ok}/${files.length} photos importées`);
+  renderCategory(catId);
+});
+
+/* ================= Viewer ================= */
+const viewer=$("#viewer"),vTrack=$("#viewerTrack"),vCount=$("#viewerCount"),vBottom=$("#viewerBottom"),vTools=$("#viewerTools");
+let viewerUrls=[],viewerIndex=0;
+
+function openViewer(index){
+  viewerIndex=index;
+  viewerUrls.forEach(u=>URL.revokeObjectURL(u));viewerUrls=[];
+  vTrack.innerHTML=currentPhotos.map(p=>{
+    const u=URL.createObjectURL(p.full);viewerUrls.push(u);
+    return `<div class="slide"><img src="${u}" alt=""></div>`;
+  }).join("");
+  viewer.classList.add("open");
+  document.body.style.overflow="hidden";
+  updateViewerUI();
+  requestAnimationFrame(()=>{vTrack.scrollLeft=index*vTrack.clientWidth});
+}
+function closeViewer(){
+  viewer.classList.remove("open");
+  document.body.style.overflow="";
+  viewerUrls.forEach(u=>URL.revokeObjectURL(u));viewerUrls=[];
+  if(current.catId)renderCategory(current.catId);
+}
+$("#viewerClose").onclick=closeViewer;
+vTrack.addEventListener("scroll",()=>{
+  clearTimeout(vTrack._t);
+  vTrack._t=setTimeout(()=>{
+    const i=Math.round(vTrack.scrollLeft/vTrack.clientWidth);
+    if(i!==viewerIndex&&i>=0&&i<currentPhotos.length){viewerIndex=i;updateViewerUI()}
+  },80);
+});
+function updateViewerUI(){
+  const p=currentPhotos[viewerIndex];
+  if(!p)return closeViewer();
+  vCount.textContent=`${viewerIndex+1} / ${currentPhotos.length}`;
+  if(editMode){
+    vTools.innerHTML=`
+      <button class="iconbtn" id="vCover">★ Couverture</button>
+      <button class="iconbtn" id="vDelete" style="color:var(--danger);border-color:rgba(201,106,92,.5)">🗑</button>`;
+    $("#vCover").onclick=async()=>{await setCover(p.categoryId,p.id);toast("Définie comme couverture ✦")};
+    $("#vDelete").onclick=async()=>{
+      const ok=await askConfirm({title:"Supprimer cette photo",text:"La photo sera définitivement supprimée.",danger:true,okLabel:"Supprimer"});
+      if(!ok)return;
+      await deletePhoto(p.id);
+      currentPhotos.splice(viewerIndex,1);
+      if(!currentPhotos.length)return closeViewer();
+      openViewer(Math.min(viewerIndex,currentPhotos.length-1));
+    };
+    vBottom.innerHTML=`<input class="caption-edit" id="vCaption" placeholder="Légende (nom, référence, prix…)" value="${esc(p.caption||"")}">`;
+    $("#vCaption").onchange=async e=>{p.caption=e.target.value;await putPhoto(p)};
+  }else{
+    vTools.innerHTML="";
+    vBottom.innerHTML=p.caption?`<div class="caption">${esc(p.caption)}</div>`:"";
+  }
+}
+
+/* ================= Settings sheet ================= */
+const sheet=$("#sheet"),sheetBackdrop=$("#sheetBackdrop");
+async function openSheet(){
+  const nPhotos=await countAllPhotos();
+  let usage="";
+  try{
+    if(navigator.storage&&navigator.storage.estimate){
+      const est=await navigator.storage.estimate();
+      usage=`${(est.usage/1048576).toFixed(1)} Mo utilisés`;
+    }
+  }catch(_){}
+  sheet.innerHTML=`
+    <h2>Réglages</h2>
+    <div class="s-sub">Ages Home · Catalogue</div>
+    <div class="s-row">
+      <div><div class="s-label">Mode édition</div>
+        <div class="s-hint">Ajouter / supprimer des photos et des catégories, renommer, choisir les couvertures.</div></div>
+      <button class="switch ${editMode?"on":""}" id="editSwitch"></button>
+    </div>
+    <button class="s-btn" id="exportBtn">⬇ &nbsp;Sauvegarder (export)</button>
+    <button class="s-btn" id="importBtn">⬆ &nbsp;Restaurer (import)</button>
+    <div class="s-note">
+      ${nPhotos} photo${nPhotos>1?"s":""} · ${usage}<br><br>
+      Les photos sont stockées sur cet appareil.<br>
+      Pensez à exporter une sauvegarde régulièrement.<br><br>
+      Sur iPad : Safari → Partager → « Sur l'écran d'accueil »<br>pour installer l'application.
+    </div>`;
+  sheet.classList.add("open");sheetBackdrop.classList.add("open");
+  $("#editSwitch").onclick=()=>{
+    editMode=!editMode;
+    closeSheet();
+    toast(editMode?"Mode édition activé ✎":"Mode présentation");
+    rerender();
+  };
+  $("#exportBtn").onclick=doExport;
+  $("#importBtn").onclick=()=>$("#importPicker").click();
+}
+function closeSheet(){sheet.classList.remove("open");sheetBackdrop.classList.remove("open")}
+sheetBackdrop.onclick=closeSheet;
+function rerender(){
+  if(current.name==="home")renderHome();
+  else if(current.name==="section")renderSection(current.section);
+  else if(current.name==="category")renderCategory(current.catId);
+}
+
+/* ================= Export / Import ================= */
+function blobToB64(blob){
+  return new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(blob)});
+}
+async function doExport(){
+  closeSheet();
+  progress(true,"Préparation de la sauvegarde…");
+  try{
+    const cats=await idbReq(tx("categories").getAll());
+    const photos=await idbReq(tx("photos").getAll());
+    const out={app:"aph-catalogue",version:1,exported:new Date().toISOString(),categories:cats,photos:[]};
+    for(let i=0;i<photos.length;i++){
+      const p=photos[i];
+      out.photos.push({id:p.id,categoryId:p.categoryId,caption:p.caption,order:p.order,created:p.created,
+        full:await blobToB64(p.full),thumb:await blobToB64(p.thumb)});
+      $("#progressLabel").textContent=`Sauvegarde ${i+1} / ${photos.length}`;
+    }
+    const blob=new Blob([JSON.stringify(out)],{type:"application/json"});
+    const name=`AgesHome-Catalogue-${new Date().toISOString().slice(0,10)}.json`;
+    const file=new File([blob],name,{type:"application/json"});
+    progress(false);
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:name});return}catch(_){}
+    }
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);a.download=name;a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    toast("Sauvegarde exportée ✦");
+  }catch(err){progress(false);console.error(err);toast("Erreur lors de l'export")}
+}
+function b64ToBlob(dataUrl){return fetch(dataUrl).then(r=>r.blob())}
+$("#importPicker").addEventListener("change",async e=>{
+  const file=e.target.files[0];e.target.value="";
+  if(!file)return;
+  let data;
+  try{data=JSON.parse(await file.text())}catch(_){return toast("Fichier invalide")}
+  if(data.app!=="aph-catalogue"||!Array.isArray(data.categories))return toast("Fichier invalide");
+  const ok=await askConfirm({title:"Restaurer la sauvegarde",danger:true,okLabel:"Restaurer",
+    text:`Cette sauvegarde (${data.photos.length} photos) remplacera tout le contenu actuel de l'application.`});
+  if(!ok)return;
+  progress(true,"Restauration…");
+  try{
+    await idbReq(tx("categories","readwrite").clear());
+    await idbReq(tx("photos","readwrite").clear());
+    const cs=tx("categories","readwrite");
+    data.categories.forEach(c=>cs.put(c));
+    for(let i=0;i<data.photos.length;i++){
+      const p=data.photos[i];
+      await putPhoto({id:p.id,categoryId:p.categoryId,caption:p.caption||"",order:p.order,created:p.created,
+        full:await b64ToBlob(p.full),thumb:await b64ToBlob(p.thumb)});
+      $("#progressLabel").textContent=`Restauration ${i+1} / ${data.photos.length}`;
+    }
+    progress(false);toast("Catalogue restauré ✦");renderHome();
+  }catch(err){progress(false);console.error(err);toast("Erreur lors de la restauration")}
+});
+
+/* ================= Boot ================= */
+$("#enterBtn").onclick=()=>$("#splash").classList.add("hidden");
+(async function(){
+  await openDB();
+  await seedIfNeeded();
+  if(navigator.storage&&navigator.storage.persist){navigator.storage.persist().catch(()=>{})}
+  await renderHome();
+  setTimeout(()=>$("#splash").classList.add("hidden"),4200);
+})();
+if("serviceWorker" in navigator&&location.protocol.startsWith("http")){
+  addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
+/* debug hook */
+window.APH={addCategory,getCategories,getPhotos,putPhoto,uid,renderHome,renderSection,renderCategory,
+  set editMode(v){editMode=v;rerender()},get editMode(){return editMode}};
+</script>
+</body>
+</html>
