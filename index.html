@@ -407,6 +407,9 @@ function openDB(){
 function tx(store,mode="readonly"){return db.transaction(store,mode).objectStore(store)}
 function idbReq(r){return new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+/* Safari iOS : les Blobs stockés en IndexedDB deviennent illisibles — on stocke des ArrayBuffers */
+function bufToBlob(v){return v instanceof Blob?v:new Blob([v],{type:"image/jpeg"})}
+async function blobToBuf(v){return v instanceof Blob?await v.arrayBuffer():v}
 
 /* ================= Data ================= */
 const DEFAULT_CATS=["Salon","Chambre","Salle à manger","Chaises","Bureaux","Chaises de bureau","Céramique","Vasques"];
@@ -451,7 +454,11 @@ async function getPhotos(categoryId){
   const all=await idbReq(tx("photos").index("categoryId").getAll(categoryId));
   return all.sort((a,b)=>a.order-b.order);
 }
-async function putPhoto(p){await idbReq(tx("photos","readwrite").put(p))}
+async function putPhoto(p){
+  p.full=await blobToBuf(p.full);
+  p.thumb=await blobToBuf(p.thumb);
+  await idbReq(tx("photos","readwrite").put(p));
+}
 async function deletePhoto(id){await idbReq(tx("photos","readwrite").delete(id))}
 async function setCover(catId,photoId){
   const c=await getCategory(catId);c.coverId=photoId;delete c.coverThumb;
@@ -491,7 +498,7 @@ let current={name:"home",section:null,catId:null};
 let objectUrls=[];
 function swapUrlScope(){const old=objectUrls;objectUrls=[];return old}
 function dropUrls(list){if(list.length)setTimeout(()=>list.forEach(u=>URL.revokeObjectURL(u)),2000)}
-function blobUrl(b){const u=URL.createObjectURL(b);objectUrls.push(u);return u}
+function blobUrl(b){const u=URL.createObjectURL(bufToBlob(b));objectUrls.push(u);return u}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 function toast(msg){
@@ -734,7 +741,7 @@ $("#coverPicker").addEventListener("change",async e=>{
     const thumb=await resizeToBlob(img,1000,.8);
     URL.revokeObjectURL(url);
     const c=await getCategory(catId);
-    c.coverThumb=thumb;c.coverId=null;
+    c.coverThumb=await blobToBuf(thumb);c.coverId=null;
     await idbReq(tx("categories","readwrite").put(c));
     progress(false);
     toast("Photo principale définie ✦");
@@ -772,7 +779,7 @@ function openViewer(index){
   viewerIndex=index;
   viewerUrls.forEach(u=>URL.revokeObjectURL(u));viewerUrls=[];
   vTrack.innerHTML=currentPhotos.map(p=>{
-    const u=URL.createObjectURL(p.full);viewerUrls.push(u);
+    const u=URL.createObjectURL(bufToBlob(p.full));viewerUrls.push(u);
     return `<div class="slide"><img src="${u}" alt=""></div>`;
   }).join("");
   viewer.classList.add("open");
@@ -845,7 +852,7 @@ async function openSheet(){
       Les photos sont stockées sur cet appareil.<br>
       Pensez à exporter une sauvegarde régulièrement.<br><br>
       Sur iPad : Safari → Partager → « Sur l'écran d'accueil »<br>pour installer l'application.<br><br>
-      Version 1.2
+      Version 1.3
     </div>`;
   sheet.classList.add("open");sheetBackdrop.classList.add("open");
   $("#editSwitch").onclick=()=>{
@@ -866,8 +873,8 @@ function rerender(){
 }
 
 /* ================= Export / Import ================= */
-function blobToB64(blob){
-  return new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(blob)});
+function blobToB64(v){
+  return new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(bufToBlob(v))});
 }
 async function doExport(){
   closeSheet();
@@ -917,7 +924,7 @@ $("#importPicker").addEventListener("change",async e=>{
     const restoredCats=[];
     for(const c of data.categories){
       const cat={id:c.id,section:c.section,name:c.name,order:c.order,coverId:c.coverId||null};
-      if(c.coverThumbB64)cat.coverThumb=await b64ToBlob(c.coverThumbB64);
+      if(c.coverThumbB64)cat.coverThumb=await blobToBuf(await b64ToBlob(c.coverThumbB64));
       restoredCats.push(cat);
     }
     const cs=tx("categories","readwrite");
@@ -934,9 +941,33 @@ $("#importPicker").addEventListener("change",async e=>{
 
 /* ================= Boot ================= */
 $("#enterBtn").onclick=()=>$("#splash").classList.add("hidden");
+async function migrateBlobs(){
+  try{
+    const photos=await idbReq(tx("photos").getAll());
+    for(const p of photos){
+      if(p.full instanceof Blob||p.thumb instanceof Blob){
+        try{
+          p.full=await blobToBuf(p.full);
+          p.thumb=await blobToBuf(p.thumb);
+          await idbReq(tx("photos","readwrite").put(p));
+        }catch(e){console.error("migration photo",p.id,e)}
+      }
+    }
+    const cats=await idbReq(tx("categories").getAll());
+    for(const c of cats){
+      if(c.coverThumb instanceof Blob){
+        try{
+          c.coverThumb=await c.coverThumb.arrayBuffer();
+          await idbReq(tx("categories","readwrite").put(c));
+        }catch(e){console.error("migration cover",c.id,e)}
+      }
+    }
+  }catch(e){console.error("migration",e)}
+}
 (async function(){
   await openDB();
   await seedIfNeeded();
+  await migrateBlobs();
   if(navigator.storage&&navigator.storage.persist){navigator.storage.persist().catch(()=>{})}
   await renderHome();
   setTimeout(()=>$("#splash").classList.add("hidden"),4200);
