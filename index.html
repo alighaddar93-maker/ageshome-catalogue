@@ -374,6 +374,7 @@ img{display:block}
 </div>
 
 <input type="file" id="filePicker" accept="image/*" multiple style="display:none">
+<input type="file" id="coverPicker" accept="image/*" style="display:none">
 <input type="file" id="importPicker" accept=".json,application/json" style="display:none">
 
 <script>
@@ -453,8 +454,13 @@ async function getPhotos(categoryId){
 async function putPhoto(p){await idbReq(tx("photos","readwrite").put(p))}
 async function deletePhoto(id){await idbReq(tx("photos","readwrite").delete(id))}
 async function setCover(catId,photoId){
-  const c=await getCategory(catId);c.coverId=photoId;
+  const c=await getCategory(catId);c.coverId=photoId;delete c.coverThumb;
   await idbReq(tx("categories","readwrite").put(c));
+}
+function categoryCoverUrl(c,photos){
+  if(c.coverThumb)return blobUrl(c.coverThumb);
+  const cp=photos.find(p=>p.id===c.coverId)||photos[0];
+  return cp?blobUrl(cp.thumb):null;
 }
 async function countAllPhotos(){return idbReq(tx("photos").count())}
 
@@ -550,10 +556,8 @@ async function renderHome(){
     const cats=await getCategories(sec);
     for(const c of cats){
       const photos=await getPhotos(c.id);
-      if(photos.length){
-        const cover=photos.find(p=>p.id===c.coverId)||photos[0];
-        covers[sec]=blobUrl(cover.thumb);break;
-      }
+      const u=categoryCoverUrl(c,photos);
+      if(u){covers[sec]=u;break;}
     }
   }
   setScreen(`
@@ -589,13 +593,14 @@ async function renderSection(section){
   const cards=[];
   for(const c of cats){
     const photos=await getPhotos(c.id);
-    const cover=photos.find(p=>p.id===c.coverId)||photos[0];
+    const coverUrl=categoryCoverUrl(c,photos);
     cards.push(`
       <div class="cat-card" data-id="${c.id}">
-        ${cover?`<div class="cover" style="background-image:url('${blobUrl(cover.thumb)}')"></div>`
+        ${coverUrl?`<div class="cover" style="background-image:url('${coverUrl}')"></div>`
                :`<div class="empty-cover"><img src="logo-mono.png" alt=""></div>`}
         <div class="veil"></div>
         ${editMode?`<div class="edit-tools">
+            <button class="mini-btn setcover" data-id="${c.id}" title="Photo principale">🖼</button>
             <button class="mini-btn rename" data-id="${c.id}" title="Renommer">✎</button>
             <button class="mini-btn danger delete" data-id="${c.id}" title="Supprimer">🗑</button>
           </div>`:""}
@@ -627,6 +632,10 @@ async function renderSection(section){
       if(e.target.closest(".edit-tools"))return;
       renderCategory(el.dataset.id);
     };
+  });
+  document.querySelectorAll(".setcover").forEach(b=>b.onclick=()=>{
+    $("#coverPicker").dataset.catId=b.dataset.id;
+    $("#coverPicker").click();
   });
   document.querySelectorAll(".rename").forEach(b=>b.onclick=async()=>{
     const c=await getCategory(b.dataset.id);
@@ -705,6 +714,27 @@ async function renderCategory(catId){
     if(ok){await deletePhoto(b.dataset.id);toast("Photo supprimée");renderCategory(catId)}
   });
 }
+
+/* ---- cover picker ---- */
+$("#coverPicker").addEventListener("change",async e=>{
+  const f=e.target.files[0];
+  const catId=e.target.dataset.catId;
+  e.target.value="";
+  if(!f||!catId)return;
+  progress(true,"Photo principale…");
+  try{
+    const url=URL.createObjectURL(f);
+    const img=await loadImage(url);
+    const thumb=await resizeToBlob(img,1000,.8);
+    URL.revokeObjectURL(url);
+    const c=await getCategory(catId);
+    c.coverThumb=thumb;c.coverId=null;
+    await idbReq(tx("categories","readwrite").put(c));
+    progress(false);
+    toast("Photo principale définie ✦");
+    if(current.name==="section")renderSection(c.section);else rerender();
+  }catch(err){progress(false);console.error(err);toast("Erreur lors de l'import")}
+});
 
 /* ---- file import ---- */
 $("#filePicker").addEventListener("change",async e=>{
@@ -838,7 +868,12 @@ async function doExport(){
   try{
     const cats=await idbReq(tx("categories").getAll());
     const photos=await idbReq(tx("photos").getAll());
-    const out={app:"aph-catalogue",version:1,exported:new Date().toISOString(),categories:cats,photos:[]};
+    const out={app:"aph-catalogue",version:1,exported:new Date().toISOString(),categories:[],photos:[]};
+    for(const c of cats){
+      const cc={id:c.id,section:c.section,name:c.name,order:c.order,coverId:c.coverId||null};
+      if(c.coverThumb)cc.coverThumbB64=await blobToB64(c.coverThumb);
+      out.categories.push(cc);
+    }
     for(let i=0;i<photos.length;i++){
       const p=photos[i];
       out.photos.push({id:p.id,categoryId:p.categoryId,caption:p.caption,order:p.order,created:p.created,
@@ -872,8 +907,14 @@ $("#importPicker").addEventListener("change",async e=>{
   try{
     await idbReq(tx("categories","readwrite").clear());
     await idbReq(tx("photos","readwrite").clear());
+    const restoredCats=[];
+    for(const c of data.categories){
+      const cat={id:c.id,section:c.section,name:c.name,order:c.order,coverId:c.coverId||null};
+      if(c.coverThumbB64)cat.coverThumb=await b64ToBlob(c.coverThumbB64);
+      restoredCats.push(cat);
+    }
     const cs=tx("categories","readwrite");
-    data.categories.forEach(c=>cs.put(c));
+    restoredCats.forEach(c=>cs.put(c));
     for(let i=0;i<data.photos.length;i++){
       const p=data.photos[i];
       await putPhoto({id:p.id,categoryId:p.categoryId,caption:p.caption||"",order:p.order,created:p.created,
